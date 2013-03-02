@@ -4341,6 +4341,7 @@ Candy.View.Template = (function(self){
  * Candy - Chats are not dead yet.
  *
  * Authors:
+ *   - Diego Felix <diegobill@gmail.com>
  *   - Patrick Stadler <patrick.stadler@gmail.com>
  *   - Michael Weibel <michael.weibel@gmail.com>
  *
@@ -4418,6 +4419,72 @@ Candy.View.Translation = {
 		'antiSpamMessage' : 'Please do not spam. You have been blocked for a short-time.'
 	},
 	
+	'pt' : {
+		'status': 'Estado: %s',
+		'statusConnecting': 'Conectando...',
+		'statusConnected' : 'Conectado',
+		'statusDisconnecting': 'Desconectando...',
+		'statusDisconnected' : 'Desconectado',
+		'statusAuthfail': 'Autenticação falhou',
+
+		'roomSubject'  : 'Assunto:',
+		'messageSubmit': 'Enviar',
+
+		'labelUsername': 'Usuário:',
+		'labelPassword': 'Senha:',
+		'loginSubmit'  : 'Entrar',
+		'loginInvalid'  : 'JID inválido',
+
+		'reason'				: 'Motivo:',
+		'subject'				: 'Assunto:',
+		'reasonWas'				: 'O motivo foi: %s.',
+		'kickActionLabel'		: 'Remover',
+		'youHaveBeenKickedBy'   : 'Você foi removido da %2$s por %1$s',
+		'youHaveBeenKicked'     : 'Você foi removido da %s',
+		'banActionLabel'		: 'Banir',
+		'youHaveBeenBannedBy'   : 'Você foi banido da %1$s por %2$s',
+		'youHaveBeenBanned'     : 'Você foi banido da %s',
+
+		'privateActionLabel' : 'Conversa privada',
+		'ignoreActionLabel'  : 'Ignorar',
+		'unignoreActionLabel' : 'Remover estado de ignorado',
+
+		'setSubjectActionLabel': 'Mudar Assunto',
+
+		'administratorMessageSubject' : 'Administrador',
+
+		'userJoinedRoom'           : '%s entrou na sala.',
+		'userLeftRoom'             : '%s saiu da sala.',
+		'userHasBeenKickedFromRoom': '%s foi excluído da sala.',
+		'userHasBeenBannedFromRoom': '%s foi banido da sala.',
+
+		'presenceUnknownWarningSubject': 'Aviso:',
+		'presenceUnknownWarning'       : 'Esse usuário não deve estar presente. Nós não conseguimos rastrear sua presença.',
+
+		'dateFormat': 'dd.mm.yyyy',
+		'timeFormat': 'HH:MM:ss',
+
+		'tooltipRole'			: 'Moderador',
+		'tooltipIgnored'		: 'Você ignorou esse usuário',
+		'tooltipEmoticons'		: 'Emoticons',
+		'tooltipSound'			: 'Emitir som para novas mensagens privadas',
+		'tooltipAutoscroll'		: 'Rolagem automática',
+		'tooltipStatusmessage'	: 'Mostrar estado das mensagens',
+		'tooltipAdministration'	: 'Administração da sala',
+		'tooltipUsercount'		: 'Ocupantes da sala',
+
+		'enterRoomPassword' : 'Sala "%s" é protegida por senha.',
+		'enterRoomPasswordSubmit' : 'Entrar na sala',
+		'passwordEnteredInvalid' : 'Senha inválida para a sala "%s".',
+
+		'nicknameConflict': 'Usuário já está em uso. Por favor escolha outro.',
+
+		'errorMembersOnly': 'Você não pode entrar na sala "%s": Autorização insuficiente.',
+		'errorMaxOccupantsReached': 'Você não pode entrar na sala "%s": Existem muitos ocupantes.',
+
+		'antiSpamMessage' : 'Por favor não faça spam. Você foi bloqueado por um pequeno período.'
+	},
+
 	'de' : {
 		'status': 'Status: %s',
 		'statusConnecting': 'Verbinden...',
