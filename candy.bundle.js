@@ -90,6 +90,11 @@ Candy.Core = (function(self, Strophe, $) {
 		 * Set in <Candy.Core.connect> when jidOrHost doesn't contain a @-char.
 		 */
 		_anonymousConnection = false,
+		/**
+		 * used to register
+		 */
+		_jid = null;
+		_password = null;
 		/** PrivateVariable: _options
 		 * Options:
 		 *   (Boolean) debug - Debug (Default: false)
@@ -103,7 +108,6 @@ Candy.Core = (function(self, Strophe, $) {
 			autojoin: true,
 			debug: false
 		},
-
 		/** PrivateFunction: _addNamespace
 		 * Adds a namespace.
 		 *
@@ -182,6 +186,17 @@ Candy.Core = (function(self, Strophe, $) {
 				}
 			});
 		}
+	};
+	
+	self.initRegister = function(service) {
+		_connection = new Strophe.Connection(service);
+	};
+	
+	self.register = function(jid, password, jabber_ip) {
+		_jid = jid;
+		_password = password;
+		
+		_connection.register.connect(jabber_ip, Candy.Core.Event.Strophe.Connect);
 	};
 
 	/** Function: connect
@@ -297,6 +312,22 @@ Candy.Core = (function(self, Strophe, $) {
 	 */
 	self.setUser = function(user) {
 		_user = user;
+	};
+	
+	self.getJid = function() {
+		return _jid;
+	};
+	
+	self.setJid = function(jid) {
+		_jid = jid;
+	};
+	
+	self.getPassword = function() {
+		return _password;
+	};
+	
+	self.setPassword = function(password) {
+		_password = password;
 	};
 
 	/** Function: getConnection
@@ -1786,7 +1817,19 @@ Candy.Core.Event = (function(self, Strophe, $, observable) {
 		 */
 		Connect: function(status) {
 			switch(status) {
+				case Strophe.Status.REGISTER: 
+					Candy.Core.log("registro iniciado!");
+					Candy.Core.getConnection().register.fields.username = Candy.Core.getJid();
+					Candy.Core.getConnection().register.fields.password = Candy.Core.getPassword();
+					Candy.Core.getConnection().register.submit();
+					Candy.Core.log("registro efetuado!");
+    				break;
+				case Strophe.Status.REGISTERED: 
+					Candy.Core.log("registered!");
+					Candy.Core.getConnection().authenticate();
+    				break;
 				case Strophe.Status.CONNECTED:
+					Candy.Core.log("logged in!");
 					Candy.Core.log('[Connection] Connected');
 					Candy.Core.Action.Jabber.GetJidIfAnonymous();
 					// fall through because the same things need to be done :)
@@ -1823,6 +1866,8 @@ Candy.Core.Event = (function(self, Strophe, $, observable) {
 					break;
 
 				default:
+					// every other status a connection.connect would receive
+					Candy.Core.log("every other status a connection.connect would receive\n");
 					Candy.Core.log('[Connection] What?!');
 					break;
 			}
