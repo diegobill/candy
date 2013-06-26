@@ -79,213 +79,6 @@ var Base64 = (function () {
     return obj;
 })();
 /*
- * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
- * in FIPS PUB 180-1
- * Version 2.1a Copyright Paul Johnston 2000 - 2002.
- * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
- * Distributed under the BSD License
- * See http://pajhome.org.uk/crypt/md5 for details.
- */
-
-/*
- * Configurable variables. You may need to tweak these to be compatible with
- * the server-side, but the defaults work in most cases.
- */
-var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
-var b64pad  = "="; /* base-64 pad character. "=" for strict RFC compliance   */
-var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
-
-/*
- * These are the functions you'll usually want to call
- * They take string arguments and return either hex or base-64 encoded strings
- */
-function hex_sha1(s){return binb2hex(core_sha1(str2binb(s),s.length * chrsz));}
-function b64_sha1(s){return binb2b64(core_sha1(str2binb(s),s.length * chrsz));}
-function str_sha1(s){return binb2str(core_sha1(str2binb(s),s.length * chrsz));}
-function hex_hmac_sha1(key, data){ return binb2hex(core_hmac_sha1(key, data));}
-function b64_hmac_sha1(key, data){ return binb2b64(core_hmac_sha1(key, data));}
-function str_hmac_sha1(key, data){ return binb2str(core_hmac_sha1(key, data));}
-
-/*
- * Perform a simple self-test to see if the VM is working
- */
-function sha1_vm_test()
-{
-  return hex_sha1("abc") == "a9993e364706816aba3e25717850c26c9cd0d89d";
-}
-
-/*
- * Calculate the SHA-1 of an array of big-endian words, and a bit length
- */
-function core_sha1(x, len)
-{
-  /* append padding */
-  x[len >> 5] |= 0x80 << (24 - len % 32);
-  x[((len + 64 >> 9) << 4) + 15] = len;
-
-  var w = new Array(80);
-  var a =  1732584193;
-  var b = -271733879;
-  var c = -1732584194;
-  var d =  271733878;
-  var e = -1009589776;
-
-  var i, j, t, olda, oldb, oldc, oldd, olde;
-  for (i = 0; i < x.length; i += 16)
-  {
-    olda = a;
-    oldb = b;
-    oldc = c;
-    oldd = d;
-    olde = e;
-
-    for (j = 0; j < 80; j++)
-    {
-      if (j < 16) { w[j] = x[i + j]; }
-      else { w[j] = rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1); }
-      t = safe_add(safe_add(rol(a, 5), sha1_ft(j, b, c, d)),
-                       safe_add(safe_add(e, w[j]), sha1_kt(j)));
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = t;
-    }
-
-    a = safe_add(a, olda);
-    b = safe_add(b, oldb);
-    c = safe_add(c, oldc);
-    d = safe_add(d, oldd);
-    e = safe_add(e, olde);
-  }
-  return [a, b, c, d, e];
-}
-
-/*
- * Perform the appropriate triplet combination function for the current
- * iteration
- */
-function sha1_ft(t, b, c, d)
-{
-  if (t < 20) { return (b & c) | ((~b) & d); }
-  if (t < 40) { return b ^ c ^ d; }
-  if (t < 60) { return (b & c) | (b & d) | (c & d); }
-  return b ^ c ^ d;
-}
-
-/*
- * Determine the appropriate additive constant for the current iteration
- */
-function sha1_kt(t)
-{
-  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
-         (t < 60) ? -1894007588 : -899497514;
-}
-
-/*
- * Calculate the HMAC-SHA1 of a key and some data
- */
-function core_hmac_sha1(key, data)
-{
-  var bkey = str2binb(key);
-  if (bkey.length > 16) { bkey = core_sha1(bkey, key.length * chrsz); }
-
-  var ipad = new Array(16), opad = new Array(16);
-  for (var i = 0; i < 16; i++)
-  {
-    ipad[i] = bkey[i] ^ 0x36363636;
-    opad[i] = bkey[i] ^ 0x5C5C5C5C;
-  }
-
-  var hash = core_sha1(ipad.concat(str2binb(data)), 512 + data.length * chrsz);
-  return core_sha1(opad.concat(hash), 512 + 160);
-}
-
-/*
- * Add integers, wrapping at 2^32. This uses 16-bit operations internally
- * to work around bugs in some JS interpreters.
- */
-function safe_add(x, y)
-{
-  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
-  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
-  return (msw << 16) | (lsw & 0xFFFF);
-}
-
-/*
- * Bitwise rotate a 32-bit number to the left.
- */
-function rol(num, cnt)
-{
-  return (num << cnt) | (num >>> (32 - cnt));
-}
-
-/*
- * Convert an 8-bit or 16-bit string to an array of big-endian words
- * In 8-bit function, characters >255 have their hi-byte silently ignored.
- */
-function str2binb(str)
-{
-  var bin = [];
-  var mask = (1 << chrsz) - 1;
-  for (var i = 0; i < str.length * chrsz; i += chrsz)
-  {
-    bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (32 - chrsz - i%32);
-  }
-  return bin;
-}
-
-/*
- * Convert an array of big-endian words to a string
- */
-function binb2str(bin)
-{
-  var str = "";
-  var mask = (1 << chrsz) - 1;
-  for (var i = 0; i < bin.length * 32; i += chrsz)
-  {
-    str += String.fromCharCode((bin[i>>5] >>> (32 - chrsz - i%32)) & mask);
-  }
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a hex string.
- */
-function binb2hex(binarray)
-{
-  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-  var str = "";
-  for (var i = 0; i < binarray.length * 4; i++)
-  {
-    str += hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8+4)) & 0xF) +
-           hex_tab.charAt((binarray[i>>2] >> ((3 - i%4)*8  )) & 0xF);
-  }
-  return str;
-}
-
-/*
- * Convert an array of big-endian words to a base-64 string
- */
-function binb2b64(binarray)
-{
-  var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  var str = "";
-  var triplet, j;
-  for (var i = 0; i < binarray.length * 4; i += 3)
-  {
-    triplet = (((binarray[i   >> 2] >> 8 * (3 -  i   %4)) & 0xFF) << 16) |
-              (((binarray[i+1 >> 2] >> 8 * (3 - (i+1)%4)) & 0xFF) << 8 ) |
-               ((binarray[i+2 >> 2] >> 8 * (3 - (i+2)%4)) & 0xFF);
-    for (j = 0; j < 4; j++)
-    {
-      if (i * 8 + j * 6 > binarray.length * 32) { str += b64pad; }
-      else { str += tab.charAt((triplet >> 6*(3-j)) & 0x3F); }
-    }
-  }
-  return str;
-}
-/*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
  * Version 2.1 Copyright (C) Paul Johnston 1999 - 2002.
@@ -612,7 +405,7 @@ if (!Function.prototype.bind) {
         var _slice = Array.prototype.slice;
         var _concat = Array.prototype.concat;
         var _args = _slice.call(arguments, 1);
-
+        
         return function () {
             return func.apply(obj ? obj : this,
                               _concat.call(_args,
@@ -721,7 +514,7 @@ Strophe = {
      *  The version of the Strophe library. Unreleased builds will have
      *  a version of head-HASH where HASH is a partial revision.
      */
-    VERSION: "8861616",
+    VERSION: "8d27954",
 
     /** Constants: XMPP Namespace Constants
      *  Common namespace constants from the XMPP RFCs and XEPs.
@@ -739,8 +532,6 @@ Strophe = {
      *  NS.STREAM - XMPP Streams namespace from RFC 3920.
      *  NS.BIND - XMPP Binding namespace from RFC 3920.
      *  NS.SESSION - XMPP Session namespace from RFC 3920.
-     *  NS.XHTML_IM - XHTML-IM namespace from XEP 71.
-     *  NS.XHTML - XHTML body namespace from XEP 71.
      */
     NS: {
         HTTPBIND: "http://jabber.org/protocol/httpbind",
@@ -757,68 +548,10 @@ Strophe = {
         BIND: "urn:ietf:params:xml:ns:xmpp-bind",
         SESSION: "urn:ietf:params:xml:ns:xmpp-session",
         VERSION: "jabber:iq:version",
-        STANZAS: "urn:ietf:params:xml:ns:xmpp-stanzas",
-        XHTML_IM: "http://jabber.org/protocol/xhtml-im",
-        XHTML: "http://www.w3.org/1999/xhtml"
+        STANZAS: "urn:ietf:params:xml:ns:xmpp-stanzas"
     },
 
-
-    /** Constants: XHTML_IM Namespace 
-     *  contains allowed tags, tag attributes, and css properties. 
-     *  Used in the createHtml function to filter incoming html into the allowed XHTML-IM subset.
-     *  See http://xmpp.org/extensions/xep-0071.html#profile-summary for the list of recommended
-     *  allowed tags and their attributes.
-     */
-    XHTML: {
-		tags: ['a','blockquote','br','cite','em','img','li','ol','p','span','strong','ul','body'],
-		attributes: {
-			'a':          ['href'],
-			'blockquote': ['style'],
-			'br':         [],
-			'cite':       ['style'],
-			'em':         [],
-			'img':        ['src', 'alt', 'style', 'height', 'width'],
-			'li':         ['style'],
-			'ol':         ['style'],
-			'p':          ['style'],
-			'span':       ['style'],
-			'strong':     [],
-			'ul':         ['style'],
-			'body':       []
-		},
-		css: ['background-color','color','font-family','font-size','font-style','font-weight','margin-left','margin-right','text-align','text-decoration'],
-		validTag: function(tag)
-		{
-			for(var i = 0; i < Strophe.XHTML.tags.length; i++) {
-				if(tag == Strophe.XHTML.tags[i]) {
-					return true;
-				}
-			}
-			return false;
-		},
-		validAttribute: function(tag, attribute)
-		{
-			if(typeof Strophe.XHTML.attributes[tag] !== 'undefined' && Strophe.XHTML.attributes[tag].length > 0) {
-				for(var i = 0; i < Strophe.XHTML.attributes[tag].length; i++) {
-					if(attribute == Strophe.XHTML.attributes[tag][i]) {
-						return true;
-					}
-				}
-			}
-			return false;
-		},
-		validCSS: function(style)
-		{
-			for(var i = 0; i < Strophe.XHTML.css.length; i++) {
-				if(style == Strophe.XHTML.css[i]) {
-					return true;
-				}
-			}
-			return false;
-		}
-    },
-
-    /** Function: addNamespace 
+    /** Function: addNamespace
      *  This function is used to extend the current namespaces in
      *	Strophe.NS.  It takes a key and a value with the key being the
      *	name of the new namespace, with its actual value.
@@ -832,7 +565,7 @@ Strophe = {
      */
     addNamespace: function (name, value)
     {
-	    Strophe.NS[name] = value;
+	Strophe.NS[name] = value;
     },
 
     /** Constants: Connection Status Constants
@@ -883,13 +616,11 @@ Strophe = {
      *
      *  ElementType.NORMAL - Normal element.
      *  ElementType.TEXT - Text data element.
-     *  ElementType.FRAGMENT - XHTML fragment element.
      */
     ElementType: {
         NORMAL: 1,
         TEXT: 3,
-        CDATA: 4,
-        FRAGMENT: 11
+        CDATA: 4
     },
 
     /** PrivateConstants: Timeout Values
@@ -967,11 +698,7 @@ Strophe = {
     _makeGenerator: function () {
         var doc;
 
-        // IE9 does implement createDocument(); however, using it will cause the browser to leak memory on page unload.
-        // Here, we test for presence of createDocument() plus IE's proprietary documentMode attribute, which would be 
-		// less than 10 in the case of IE9 and below.
-        if (document.implementation.createDocument === undefined || 
-			document.implementation.createDocument && document.documentMode && document.documentMode < 10) {
+        if (document.implementation.createDocument === undefined) {
             doc = this._getIEXmlDom();
             doc.appendChild(doc.createElement('strophe'));
         } else {
@@ -1115,32 +842,10 @@ Strophe = {
      */
     xmlTextNode: function (text)
     {
-        //ensure text is escaped
-        text = Strophe.xmlescape(text);
-        return Strophe.xmlGenerator().createTextNode(text);
-    },
+	//ensure text is escaped
+	text = Strophe.xmlescape(text);
 
-    /** Function: xmlHtmlNode
-     *  Creates an XML DOM html node.
-     *
-     *  Parameters:
-     *    (String) html - The content of the html node.
-     *
-     *  Returns:
-     *    A new XML DOM text node.
-     */
-    xmlHtmlNode: function (html)
-    {
-        //ensure text is escaped
-        if (window.DOMParser) {
-            parser = new DOMParser();
-            node = parser.parseFromString(html, "text/xml");
-        } else {
-            node = new ActiveXObject("Microsoft.XMLDOM");
-            node.async="false";
-            node.loadXML(html);
-        }
-        return node;
+        return Strophe.xmlGenerator().createTextNode(text);
     },
 
     /** Function: getText
@@ -1168,7 +873,7 @@ Strophe = {
             }
         }
 
-        return Strophe.xmlescape(str);
+        return str;
     },
 
     /** Function: copyElement
@@ -1199,83 +904,6 @@ Strophe = {
             }
         } else if (elem.nodeType == Strophe.ElementType.TEXT) {
             el = Strophe.xmlGenerator().createTextNode(elem.nodeValue);
-        }
-
-        return el;
-    },
-
-
-    /** Function: createHtml
-     *  Copy an HTML DOM element into an XML DOM.
-     *
-     *  This function copies a DOM element and all its descendants and returns
-     *  the new copy.
-     *
-     *  Parameters:
-     *    (HTMLElement) elem - A DOM element.
-     *
-     *  Returns:
-     *    A new, copied DOM element tree.
-     */
-    createHtml: function (elem)
-    {
-        var i, el, j, tag, attribute, value, css, cssAttrs, attr, cssName, cssValue, children, child;
-        if (elem.nodeType == Strophe.ElementType.NORMAL) {
-            tag = elem.nodeName.toLowerCase();
-            if(Strophe.XHTML.validTag(tag)) {
-                try {
-                    el = Strophe.xmlElement(tag);
-                    for(i = 0; i < Strophe.XHTML.attributes[tag].length; i++) {
-                        attribute = Strophe.XHTML.attributes[tag][i];
-                        value = elem.getAttribute(attribute);
-                        if(typeof value == 'undefined' || value === null || value === '' || value === false || value === 0) {
-                            continue;
-                        }
-                        if(attribute == 'style' && typeof value == 'object') {
-                            if(typeof value.cssText != 'undefined') {
-                                value = value.cssText; // we're dealing with IE, need to get CSS out
-                            }
-                        }
-                        // filter out invalid css styles
-                        if(attribute == 'style') {
-                            css = [];
-                            cssAttrs = value.split(';');
-                            for(j = 0; j < cssAttrs.length; j++) {
-                                attr = cssAttrs[j].split(':');
-                                cssName = attr[0].replace(/^\s*/, "").replace(/\s*$/, "").toLowerCase();
-                                if(Strophe.XHTML.validCSS(cssName)) {
-                                    cssValue = attr[1].replace(/^\s*/, "").replace(/\s*$/, "");
-                                    css.push(cssName + ': ' + cssValue);
-                                }
-                            }
-                            if(css.length > 0) {
-                                value = css.join('; ');
-                                el.setAttribute(attribute, value);
-                            }
-                        } else {
-                            el.setAttribute(attribute, value);
-                        }
-                    }
-
-                    for (i = 0; i < elem.childNodes.length; i++) {
-                        el.appendChild(Strophe.createHtml(elem.childNodes[i]));
-                    }
-                } catch(e) { // invalid elements
-                  el = Strophe.xmlTextNode('');
-                }
-            } else {
-                el = Strophe.xmlGenerator().createDocumentFragment();
-                for (i = 0; i < elem.childNodes.length; i++) {
-                    el.appendChild(Strophe.createHtml(elem.childNodes[i]));
-                }
-            }
-        } else if (elem.nodeType == Strophe.ElementType.FRAGMENT) {
-            el = Strophe.xmlGenerator().createDocumentFragment();
-            for (i = 0; i < elem.childNodes.length; i++) {
-                el.appendChild(Strophe.createHtml(elem.childNodes[i]));
-            }
-        } else if (elem.nodeType == Strophe.ElementType.TEXT) {
-            el = Strophe.xmlTextNode(elem.nodeValue);
         }
 
         return el;
@@ -1517,7 +1145,6 @@ Strophe = {
                 "='" + elem.attributes[i].value
                     .replace(/&/g, "&amp;")
                        .replace(/\'/g, "&apos;")
-                       .replace(/>/g, "&gt;")
                        .replace(/</g, "&lt;") + "'";
                }
         }
@@ -1774,35 +1401,9 @@ Strophe.Builder.prototype = {
         var child = Strophe.xmlTextNode(text);
         this.node.appendChild(child);
         return this;
-    },
-
-    /** Function: h
-     *  Replace current element contents with the HTML passed in.
-     *
-     *  This *does not* make the child the new current element
-     *
-     *  Parameters:
-     *    (String) html - The html to insert as contents of current element.
-     *
-     *  Returns:
-     *    The Strophe.Builder object.
-     */
-    h: function (html)
-    {
-        var fragment = document.createElement('body');
-
-        // force the browser to try and fix any invalid HTML tags
-        fragment.innerHTML = html;
-
-        // copy cleaned html into an xml dom
-        var xhtml = Strophe.createHtml(fragment);
-
-        while(xhtml.childNodes.length > 0) {
-            this.node.appendChild(xhtml.childNodes[0]);
-        }
-        return this;
     }
 };
+
 
 /** PrivateClass: Strophe.Handler
  *  _Private_ helper class for managing stanza handlers.
@@ -1841,7 +1442,7 @@ Strophe.Handler = function (handler, ns, name, type, id, from, options)
     this.type = type;
     this.id = id;
     this.options = options || {matchbare: false};
-    
+
     // default matchBare to false if undefined
     if (!this.options.matchBare) {
         this.options.matchBare = false;
@@ -1871,7 +1472,7 @@ Strophe.Handler.prototype = {
     {
         var nsMatch;
         var from = null;
-        
+
         if (this.options.matchBare) {
             from = Strophe.getBareJidFromJid(elem.getAttribute('from'));
         } else {
@@ -1932,7 +1533,7 @@ Strophe.Handler.prototype = {
                               e.fileName + ":" + e.lineNumber + " - " +
                               e.name + ": " + e.message);
             } else {
-                Strophe.fatal("error: " + e.message + "\n" + e.stack);
+                Strophe.fatal("error: " + this.handler);
             }
 
             throw e;
@@ -2133,7 +1734,7 @@ Strophe.Request.prototype = {
 /** Class: Strophe.Connection
  *  XMPP Connection manager.
  *
- *  This class is the main part of Strophe.  It manages a BOSH connection
+ *  Thie class is the main part of Strophe.  It manages a BOSH connection
  *  to an XMPP server and dispatches events to the user callbacks as
  *  data arrives.  It supports SASL PLAIN, SASL DIGEST-MD5, and legacy
  *  authentication.
@@ -2167,8 +1768,6 @@ Strophe.Connection = function (service)
     this.service = service;
     /* The connected JID. */
     this.jid = "";
-    /* the JIDs domain */
-    this.domain = null;
     /* request id for body tags */
     this.rid = Math.floor(Math.random() * 4294967295);
     /* The current session ID. */
@@ -2178,7 +1777,6 @@ Strophe.Connection = function (service)
     this.features = null;
 
     // SASL
-    this._sasl_data = [];
     this.do_session = false;
     this.do_bind = false;
 
@@ -2190,11 +1788,9 @@ Strophe.Connection = function (service)
     this.addTimeds = [];
     this.addHandlers = [];
 
-    this._authentication = {};
     this._idleTimeout = null;
     this._disconnectTimeout = null;
 
-    this.do_authentication = true;
     this.authenticated = false;
     this.disconnecting = false;
     this.connected = false;
@@ -2215,9 +1811,6 @@ Strophe.Connection = function (service)
     this._sasl_success_handler = null;
     this._sasl_failure_handler = null;
     this._sasl_challenge_handler = null;
-
-    // Max retries before disconnecting
-    this.maxRetries = 5;
 
     // setup onIdle callback every 1/10th of a second
     this._idleTimeout = setTimeout(this._onIdle.bind(this), 100);
@@ -2260,7 +1853,6 @@ Strophe.Connection.prototype = {
         this.removeHandlers = [];
         this.addTimeds = [];
         this.addHandlers = [];
-        this._authentication = {};
 
         this.authenticated = false;
         this.disconnecting = false;
@@ -2353,9 +1945,8 @@ Strophe.Connection.prototype = {
      *    (Integer) hold - The optional HTTPBIND hold value.  This is the
      *      number of connections the server will hold at one time.  This
      *      should almost always be set to 1 (the default).
-	 *    (String) route
      */
-    connect: function (jid, pass, callback, wait, hold, route)
+    connect: function (jid, pass, callback, wait, hold)
     {
         this.jid = jid;
         this.pass = pass;
@@ -2369,7 +1960,7 @@ Strophe.Connection.prototype = {
         this.hold = hold || this.hold;
 
         // parse jid for domain and resource
-        this.domain = this.domain || Strophe.getDomainFromJid(this.jid);
+        this.domain = Strophe.getDomainFromJid(this.jid);
 
         // build the body tag
         var body = this._buildBody().attrs({
@@ -2383,21 +1974,12 @@ Strophe.Connection.prototype = {
             "xmlns:xmpp": Strophe.NS.BOSH
         });
 
-		if(route){
-			body.attrs({
-				route: route
-			});
-		}
-
         this._changeConnectStatus(Strophe.Status.CONNECTING, null);
-
-        var _connect_cb = this._connect_callback || this._connect_cb;
-        this._connect_callback = null;
 
         this._requests.push(
             new Strophe.Request(body.tree(),
                                 this._onRequestStateChange.bind(
-                                    this, _connect_cb.bind(this)),
+                                    this, this._connect_cb.bind(this)),
                                 body.tree().getAttribute("rid")));
         this._throttledRequestHandler();
     },
@@ -2643,7 +2225,7 @@ Strophe.Connection.prototype = {
                 message: "Cannot queue non-DOMElement."
             };
         }
-        
+
         this._data.push(element);
     },
 
@@ -2918,7 +2500,7 @@ Strophe.Connection.prototype = {
         }
 
         // make sure we limit the number of retries
-        if (req.sends > this.maxRetries) {
+        if (req.sends > 5) {
             this._onDisconnectTimeout();
             return;
         }
@@ -3323,11 +2905,8 @@ Strophe.Connection.prototype = {
      *
      *  Parameters:
      *    (Strophe.Request) req - The current request.
-     *    (Function) _callback - low level (xmpp) connect callback function.
-     *      Useful for plugins with their own xmpp connect callback (when their)
-     *      want to do something special).
      */
-    _connect_cb: function (req, _callback)
+    _connect_cb: function (req)
     {
         Strophe.info("_connect_cb was called");
 
@@ -3374,74 +2953,39 @@ Strophe.Connection.prototype = {
         var wait = bodyWrap.getAttribute('wait');
         if (wait) { this.wait = parseInt(wait, 10); }
 
-        this._authentication.sasl_scram_sha1 = false;
-        this._authentication.sasl_plain = false;
-        this._authentication.sasl_digest_md5 = false;
-        this._authentication.sasl_anonymous = false;
-        this._authentication.legacy_auth = false;
 
+        var do_sasl_plain = false;
+        var do_sasl_digest_md5 = false;
+        var do_sasl_anonymous = false;
 
-        // Check for the stream:features tag
-        var hasFeatures = bodyWrap.getElementsByTagName("stream:features").length > 0;
-        if (!hasFeatures) {
-            hasFeatures = bodyWrap.getElementsByTagName("features").length > 0;
-        }
         var mechanisms = bodyWrap.getElementsByTagName("mechanism");
-        var i, mech, auth_str, hashed_auth_str,
-            found_authentication = false;
-        if (hasFeatures && mechanisms.length > 0) {
-            var missmatchedmechs = 0;
+        var i, mech, auth_str, hashed_auth_str;
+        if (mechanisms.length > 0) {
             for (i = 0; i < mechanisms.length; i++) {
                 mech = Strophe.getText(mechanisms[i]);
-                if (mech == 'SCRAM-SHA-1') {
-                    this._authentication.sasl_scram_sha1 = true;
-                } else if (mech == 'DIGEST-MD5') {
-                    this._authentication.sasl_digest_md5 = true;
+                if (mech == 'DIGEST-MD5') {
+                    do_sasl_digest_md5 = true;
                 } else if (mech == 'PLAIN') {
-                    this._authentication.sasl_plain = true;
+                    do_sasl_plain = true;
                 } else if (mech == 'ANONYMOUS') {
-                    this._authentication.sasl_anonymous = true;
-                } else missmatchedmechs++;
+                    do_sasl_anonymous = true;
+                }
             }
-
-            this._authentication.legacy_auth =
-                bodyWrap.getElementsByTagName("auth").length > 0;
-
-            found_authentication =
-                this._authentication.legacy_auth ||
-                missmatchedmechs < mechanisms.length;
-        }
-        if (!found_authentication) {
-            _callback = _callback || this._connect_cb;
+        } else {
             // we didn't get stream:features yet, so we need wait for it
             // by sending a blank poll request
             var body = this._buildBody();
             this._requests.push(
                 new Strophe.Request(body.tree(),
                                     this._onRequestStateChange.bind(
-                                        this, _callback.bind(this)),
+                                        this, this._connect_cb.bind(this)),
                                     body.tree().getAttribute("rid")));
             this._throttledRequestHandler();
             return;
         }
-        if (this.do_authentication !== false)
-            this.authenticate();
-    },
 
-    /** Function: authenticate
-     * Set up authentication
-     *
-     *  Contiunues the initial connection request by setting up authentication
-     *  handlers and start the authentication process.
-     *
-     *  SASL authentication will be attempted if available, otherwise
-     *  the code will fall back to legacy authentication.
-     *
-     */
-    authenticate: function ()
-    {
         if (Strophe.getNodeFromJid(this.jid) === null &&
-            this._authentication.sasl_anonymous) {
+            do_sasl_anonymous) {
             this._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
             this._sasl_success_handler = this._addSysHandler(
                 this._sasl_success_cb.bind(this), null,
@@ -3460,34 +3004,10 @@ Strophe.Connection.prototype = {
             this._changeConnectStatus(Strophe.Status.CONNFAIL,
                                       'x-strophe-bad-non-anon-jid');
             this.disconnect();
-        } else if (this._authentication.sasl_scram_sha1) {
-            var cnonce = MD5.hexdigest(Math.random() * 1234567890);
-
-            var auth_str = "n=" + Strophe.getNodeFromJid(this.jid);
-            auth_str += ",r=";
-            auth_str += cnonce;
-
-            this._sasl_data["cnonce"] = cnonce;
-            this._sasl_data["client-first-message-bare"] = auth_str;
-
-            auth_str = "n,," + auth_str;
-
+        } else if (do_sasl_digest_md5) {
             this._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
             this._sasl_challenge_handler = this._addSysHandler(
-                this._sasl_scram_challenge_cb.bind(this), null,
-                "challenge", null, null);
-            this._sasl_failure_handler = this._addSysHandler(
-                this._sasl_failure_cb.bind(this), null,
-                "failure", null, null);
-
-            this.send($build("auth", {
-                xmlns: Strophe.NS.SASL,
-                mechanism: "SCRAM-SHA-1"
-            }).t(Base64.encode(auth_str)).tree());
-        } else if (this._authentication.sasl_digest_md5) {
-            this._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
-            this._sasl_challenge_handler = this._addSysHandler(
-                this._sasl_digest_challenge1_cb.bind(this), null,
+                this._sasl_challenge1_cb.bind(this), null,
                 "challenge", null, null);
             this._sasl_failure_handler = this._addSysHandler(
                 this._sasl_failure_cb.bind(this), null,
@@ -3497,7 +3017,7 @@ Strophe.Connection.prototype = {
                 xmlns: Strophe.NS.SASL,
                 mechanism: "DIGEST-MD5"
             }).tree());
-        } else if (this._authentication.sasl_plain) {
+        } else if (do_sasl_plain) {
             // Build the plain auth string (barejid null
             // username null password) and base 64 encoded.
             auth_str = unescape(encodeURIComponent(Strophe.getBareJidFromJid(this.jid)));
@@ -3534,7 +3054,7 @@ Strophe.Connection.prototype = {
         }
     },
 
-    /** PrivateFunction: _sasl_digest_challenge1_cb
+    /** PrivateFunction: _sasl_challenge1_cb
      *  _Private_ handler for DIGEST-MD5 SASL authentication.
      *
      *  Parameters:
@@ -3543,7 +3063,7 @@ Strophe.Connection.prototype = {
      *  Returns:
      *    false to remove the handler.
      */
-    _sasl_digest_challenge1_cb: function (elem)
+    _sasl_challenge1_cb: function (elem)
     {
         var attribMatch = /([a-z]+)=("[^"]+"|[^,"]+)(?:,|$)/;
 
@@ -3605,7 +3125,7 @@ Strophe.Connection.prototype = {
         responseText += 'charset="utf-8"';
 
         this._sasl_challenge_handler = this._addSysHandler(
-            this._sasl_digest_challenge2_cb.bind(this), null,
+            this._sasl_challenge2_cb.bind(this), null,
             "challenge", null, null);
         this._sasl_success_handler = this._addSysHandler(
             this._sasl_success_cb.bind(this), null,
@@ -3637,7 +3157,7 @@ Strophe.Connection.prototype = {
     },
 
 
-    /** PrivateFunction: _sasl_digest_challenge2_cb
+    /** PrivateFunction: _sasl_challenge2_cb
      *  _Private_ handler for second step of DIGEST-MD5 SASL authentication.
      *
      *  Parameters:
@@ -3646,7 +3166,7 @@ Strophe.Connection.prototype = {
      *  Returns:
      *    false to remove the handler.
      */
-    _sasl_digest_challenge2_cb: function (elem)
+    _sasl_challenge2_cb: function (elem)
     {
         // remove unneeded handlers
         this.deleteHandler(this._sasl_success_handler);
@@ -3659,91 +3179,6 @@ Strophe.Connection.prototype = {
             this._sasl_failure_cb.bind(this), null,
             "failure", null, null);
         this.send($build('response', {xmlns: Strophe.NS.SASL}).tree());
-        return false;
-    },
-
-    /** PrivateFunction: _sasl_scram_challenge_cb
-     *  _Private_ handler for SCRAM-SHA-1 SASL authentication.
-     *
-     *  Parameters:
-     *    (XMLElement) elem - The challenge stanza.
-     *
-     *  Returns:
-     *    false to remove the handler.
-     */
-    _sasl_scram_challenge_cb: function (elem)
-    {
-        var nonce, salt, iter, Hi, U, U_old;
-        var clientKey, serverKey, clientSignature;
-        var responseText = "c=biws,";
-        var challenge = Base64.decode(Strophe.getText(elem));
-        var authMessage = this._sasl_data["client-first-message-bare"] + "," +
-            challenge + ",";
-        var cnonce = this._sasl_data["cnonce"]
-        var attribMatch = /([a-z]+)=([^,]+)(,|$)/;
-
-        // remove unneeded handlers
-        this.deleteHandler(this._sasl_failure_handler);
-
-        while (challenge.match(attribMatch)) {
-            matches = challenge.match(attribMatch);
-            challenge = challenge.replace(matches[0], "");
-            switch (matches[1]) {
-            case "r":
-                nonce = matches[2];
-                break;
-            case "s":
-                salt = matches[2];
-                break;
-            case "i":
-                iter = matches[2];
-                break;
-            }
-        }
-
-        if (!(nonce.substr(0, cnonce.length) === cnonce)) {
-            this._sasl_data = [];
-            return this._sasl_failure_cb(null);
-        }
-
-        responseText += "r=" + nonce;
-        authMessage += responseText;
-
-        salt = Base64.decode(salt);
-        salt += "\0\0\0\1";
-
-        Hi = U_old = core_hmac_sha1(this.pass, salt);
-        for (i = 1; i < iter; i++) {
-            U = core_hmac_sha1(this.pass, binb2str(U_old));
-            for (k = 0; k < 5; k++) {
-                Hi[k] ^= U[k];
-            }
-            U_old = U;
-        }
-        Hi = binb2str(Hi);
-
-        clientKey = core_hmac_sha1(Hi, "Client Key");
-        serverKey = str_hmac_sha1(Hi, "Server Key");
-        clientSignature = core_hmac_sha1(str_sha1(binb2str(clientKey)), authMessage);
-        this._sasl_data["server-signature"] = b64_hmac_sha1(serverKey, authMessage);
-
-        for (k = 0; k < 5; k++) {
-            clientKey[k] ^= clientSignature[k];
-        }
-
-        responseText += ",p=" + Base64.encode(binb2str(clientKey));
-
-        this._sasl_success_handler = this._addSysHandler(
-            this._sasl_success_cb.bind(this), null,
-            "success", null, null);
-        this._sasl_failure_handler = this._addSysHandler(
-            this._sasl_failure_cb.bind(this), null,
-            "failure", null, null);
-
-        this.send($build('response', {
-            xmlns: Strophe.NS.SASL
-        }).t(Base64.encode(responseText)).tree());
-
         return false;
     },
 
@@ -3797,29 +3232,7 @@ Strophe.Connection.prototype = {
      */
     _sasl_success_cb: function (elem)
     {
-        if (this._sasl_data["server-signature"]) {
-            var serverSignature;
-            var success = Base64.decode(Strophe.getText(elem));
-            var attribMatch = /([a-z]+)=([^,]+)(,|$)/;
-            matches = success.match(attribMatch);
-            if (matches[1] == "v") {
-                serverSignature = matches[2];
-            }
-	    if (serverSignature != this._sasl_data["server-signature"]) {
-		// remove old handlers
-		this.deleteHandler(this._sasl_failure_handler);
-		this._sasl_failure_handler = null;
-		if (this._sasl_challenge_handler) {
-			this.deleteHandler(this._sasl_challenge_handler);
-			this._sasl_challenge_handler = null;
-		}
-
-		this._sasl_data = [];
-		return this._sasl_failure_cb(null);
-	    }
-	}
-
-	Strophe.info("SASL authentication succeeded.");
+        Strophe.info("SASL authentication succeeded.");
 
         // remove old handlers
         this.deleteHandler(this._sasl_failure_handler);
@@ -3900,11 +3313,7 @@ Strophe.Connection.prototype = {
     {
         if (elem.getAttribute("type") == "error") {
             Strophe.info("SASL binding failed.");
-			var conflict = elem.getElementsByTagName("conflict"), condition;
-			if (conflict.length > 0) {
-				condition = 'conflict';
-			}
-            this._changeConnectStatus(Strophe.Status.AUTHFAIL, condition);
+            this._changeConnectStatus(Strophe.Status.AUTHFAIL, null);
             return false;
         }
 
@@ -4202,1448 +3611,308 @@ if (callback) {
     window.$iq = arguments[3];
     window.$pres = arguments[4];
 });
-// Generated by CoffeeScript 1.3.3
 /*
- *Plugin to implement the MUC extension.
-   http://xmpp.org/extensions/xep-0045.html
- *Previous Author:
-    Nathan Zorn <nathan.zorn@gmail.com>
- *Complete CoffeeScript rewrite:
-    Andreas Guth <guth@dbis.rwth-aachen.de>
+Plugin to implement the MUC extension. http://xmpp.org/extensions/xep-0045.html
 */
-
-var Occupant, RoomConfig, XmppRoom,
-  __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+/* jslint configuration: */
+/* global document, window, setTimeout, clearTimeout, console,
+    XMLHttpRequest, ActiveXObject,
+    Base64, MD5,
+    Strophe, $build, $msg, $iq, $pres 
+*/
 
 Strophe.addConnectionPlugin('muc', {
-  _connection: null,
-  rooms: {},
-  roomNames: [],
-  /*Function
-  Initialize the MUC plugin. Sets the correct connection object and
-  extends the namesace.
-  */
-
-  init: function(conn) {
-    this._connection = conn;
-    this._muc_handler = null;
-    Strophe.addNamespace('MUC_OWNER', Strophe.NS.MUC + "#owner");
-    Strophe.addNamespace('MUC_ADMIN', Strophe.NS.MUC + "#admin");
-    Strophe.addNamespace('MUC_USER', Strophe.NS.MUC + "#user");
-    return Strophe.addNamespace('MUC_ROOMCONF', Strophe.NS.MUC + "#roomconfig");
-  },
-  /*Function
-  Join a multi-user chat room
-  Parameters:
-  (String) room - The multi-user chat room to join.
-  (String) nick - The nickname to use in the chat room. Optional
-  (Function) msg_handler_cb - The function call to handle messages from the
-  specified chat room.
-  (Function) pres_handler_cb - The function call back to handle presence
-  in the chat room.
-  (String) password - The optional password to use. (password protected
-  rooms only)
-  */
-
-  join: function(room, nick, msg_handler_cb, pres_handler_cb, roster_cb, password, history_attrs) {
-    var msg, room_nick, _ref,
-      _this = this;
-    room_nick = this.test_append_nick(room, nick);
-    msg = $pres({
-      from: this._connection.jid,
-      to: room_nick
-    }).c("x", {
-      xmlns: Strophe.NS.MUC
-    });
-    if (history_attrs != null) {
-      msg = msg.c("history", history_attrs);
-    }
-    if (password != null) {
-      msg.cnode(Strophe.xmlElement("password", [], password));
-    }
-    if ((_ref = this._muc_handler) == null) {
-      this._muc_handler = this._connection.addHandler(function(stanza) {
-        var from, handler, handlers, id, roomname, x, xmlns, xquery, _i, _len;
-        from = stanza.getAttribute('from');
-        if (!from) {
-          return true;
-        }
-        roomname = from.split("/")[0];
-        if (!_this.rooms[roomname]) {
-          return true;
-        }
-        room = _this.rooms[roomname];
-        handlers = {};
-        if (stanza.nodeName === "message") {
-          handlers = room._message_handlers;
-        } else if (stanza.nodeName === "presence") {
-          xquery = stanza.getElementsByTagName("x");
-          if (xquery.length > 0) {
-            for (_i = 0, _len = xquery.length; _i < _len; _i++) {
-              x = xquery[_i];
-              xmlns = x.getAttribute("xmlns");
-              if (xmlns && xmlns.match(Strophe.NS.MUC)) {
-                handlers = room._presence_handlers;
-                break;
-              }
-            }
-          }
-        }
-        for (id in handlers) {
-          handler = handlers[id];
-          if (!handler(stanza, room)) {
-            delete handlers[id];
-          }
-        }
-        return true;
-      });
-    }
-    if (!this.rooms.hasOwnProperty(room)) {
-      this.rooms[room] = new XmppRoom(this, room, nick, password);
-      this.roomNames.push(room);
-    }
-    if (pres_handler_cb) {
-      this.rooms[room].addHandler('presence', pres_handler_cb);
-    }
-    if (msg_handler_cb) {
-      this.rooms[room].addHandler('message', msg_handler_cb);
-    }
-    if (roster_cb) {
-      this.rooms[room].addHandler('roster', roster_cb);
-    }
-    return this._connection.send(msg);
-  },
-  /*Function
-  Leave a multi-user chat room
-  Parameters:
-  (String) room - The multi-user chat room to leave.
-  (String) nick - The nick name used in the room.
-  (Function) handler_cb - Optional function to handle the successful leave.
-  (String) exit_msg - optional exit message.
-  Returns:
-  iqid - The unique id for the room leave.
-  */
-
-  leave: function(room, nick, handler_cb, exit_msg) {
-    var id, presence, presenceid, room_nick;
-    id = this.roomNames.indexOf(room);
-    delete this.rooms[room];
-    if (id >= 0) {
-      this.roomNames.splice(id, 1);
-      if (this.roomNames.length === 0) {
-        this._connection.deleteHandler(this._muc_handler);
-        this._muc_handler = null;
-      }
-    }
-    room_nick = this.test_append_nick(room, nick);
-    presenceid = this._connection.getUniqueId();
-    presence = $pres({
-      type: "unavailable",
-      id: presenceid,
-      from: this._connection.jid,
-      to: room_nick
-    });
-    if (exit_msg != null) {
-      presence.c("status", exit_msg);
-    }
-    if (handler_cb != null) {
-      this._connection.addHandler(handler_cb, null, "presence", null, presenceid);
-    }
-    this._connection.send(presence);
-    return presenceid;
-  },
-  /*Function
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) nick - The nick name used in the chat room.
-  (String) message - The plaintext message to send to the room.
-  (String) html_message - The message to send to the room with html markup.
-  (String) type - "groupchat" for group chat messages o
-                  "chat" for private chat messages
-  Returns:
-  msgiq - the unique id used to send the message
-  */
-
-  message: function(room, nick, message, html_message, type) {
-    var msg, msgid, parent, room_nick;
-    room_nick = this.test_append_nick(room, nick);
-    type = type || (nick != null ? "chat" : "groupchat");
-    msgid = this._connection.getUniqueId();
-    msg = $msg({
-      to: room_nick,
-      from: this._connection.jid,
-      type: type,
-      id: msgid
-    }).c("body", {
-      xmlns: Strophe.NS.CLIENT
-    }).t(message);
-    msg.up();
-    if (html_message != null) {
-      msg.c("html", {
-        xmlns: Strophe.NS.XHTML_IM
-      }).c("body", {
-        xmlns: Strophe.NS.XHTML
-      }).t(html_message);
-      if (msg.node.childNodes.length === 0) {
-        parent = msg.node.parentNode;
-        msg.up().up();
-        msg.node.removeChild(parent);
-      } else {
-        msg.up().up();
-      }
-    }
-    msg.c("x", {
-      xmlns: "jabber:x:event"
-    }).c("composing");
-    this._connection.send(msg);
-    return msgid;
-  },
-  /*Function
-  Convenience Function to send a Message to all Occupants
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) message - The plaintext message to send to the room.
-  (String) html_message - The message to send to the room with html markup.
-  Returns:
-  msgiq - the unique id used to send the message
-  */
-
-  groupchat: function(room, message, html_message) {
-    return this.message(room, null, message, html_message);
-  },
-  /*Function
-  Send a mediated invitation.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) receiver - The invitation's receiver.
-  (String) reason - Optional reason for joining the room.
-  Returns:
-  msgiq - the unique id used to send the invitation
-  */
-
-  invite: function(room, receiver, reason) {
-    var invitation, msgid;
-    msgid = this._connection.getUniqueId();
-    invitation = $msg({
-      from: this._connection.jid,
-      to: room,
-      id: msgid
-    }).c('x', {
-      xmlns: Strophe.NS.MUC_USER
-    }).c('invite', {
-      to: receiver
-    });
-    if (reason != null) {
-      invitation.c('reason', reason);
-    }
-    this._connection.send(invitation);
-    return msgid;
-  },
-  /*Function
-  Send a direct invitation.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) receiver - The invitation's receiver.
-  (String) reason - Optional reason for joining the room.
-  (String) password - Optional password for the room.
-  Returns:
-  msgiq - the unique id used to send the invitation
-  */
-
-  directInvite: function(room, receiver, reason, password) {
-    var attrs, invitation, msgid;
-    msgid = this._connection.getUniqueId();
-    attrs = {
-      xmlns: 'jabber:x:conference',
-      jid: room
-    };
-    if (reason != null) {
-      attrs.reason = reason;
-    }
-    if (password != null) {
-      attrs.password = password;
-    }
-    invitation = $msg({
-      from: this._connection.jid,
-      to: receiver,
-      id: msgid
-    }).c('x', attrs);
-    this._connection.send(invitation);
-    return msgid;
-  },
-  /*Function
-  Queries a room for a list of occupants
-  (String) room - The multi-user chat room name.
-  (Function) success_cb - Optional function to handle the info.
-  (Function) error_cb - Optional function to handle an error.
-  Returns:
-  id - the unique id used to send the info request
-  */
-
-  queryOccupants: function(room, success_cb, error_cb) {
-    var attrs, info;
-    attrs = {
-      xmlns: Strophe.NS.DISCO_ITEMS
-    };
-    info = $iq({
-      from: this._connection.jid,
-      to: room,
-      type: 'get'
-    }).c('query', attrs);
-    return this._connection.sendIQ(info, success_cb, error_cb);
-  },
-  /*Function
-  Start a room configuration.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (Function) handler_cb - Optional function to handle the config form.
-  Returns:
-  id - the unique id used to send the configuration request
-  */
-
-  configure: function(room, handler_cb, error_cb) {
-    var config, stanza;
-    config = $iq({
-      to: room,
-      type: "get"
-    }).c("query", {
-      xmlns: Strophe.NS.MUC_OWNER
-    });
-    stanza = config.tree();
-    return this._connection.sendIQ(stanza, handler_cb, error_cb);
-  },
-  /*Function
-  Cancel the room configuration
-  Parameters:
-  (String) room - The multi-user chat room name.
-  Returns:
-  id - the unique id used to cancel the configuration.
-  */
-
-  cancelConfigure: function(room) {
-    var config, stanza;
-    config = $iq({
-      to: room,
-      type: "set"
-    }).c("query", {
-      xmlns: Strophe.NS.MUC_OWNER
-    }).c("x", {
-      xmlns: "jabber:x:data",
-      type: "cancel"
-    });
-    stanza = config.tree();
-    return this._connection.sendIQ(stanza);
-  },
-  /*Function
-  Save a room configuration.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (Array) config- Form Object or an array of form elements used to configure the room.
-  Returns:
-  id - the unique id used to save the configuration.
-  */
-
-  saveConfiguration: function(room, config, success_cb, error_cb) {
-    var conf, iq, stanza, _i, _len;
-    iq = $iq({
-      to: room,
-      type: "set"
-    }).c("query", {
-      xmlns: Strophe.NS.MUC_OWNER
-    });
-    if (config instanceof Form) {
-      config.type = "submit";
-      iq.cnode(config.toXML());
-    } else {
-      iq.c("x", {
-        xmlns: "jabber:x:data",
-        type: "submit"
-      });
-      for (_i = 0, _len = config.length; _i < _len; _i++) {
-        conf = config[_i];
-        iq.cnode(conf).up();
-      }
-    }
-    stanza = iq.tree();
-    return this._connection.sendIQ(stanza, success_cb, error_cb);
-  },
-  /*Function
-  Parameters:
-  (String) room - The multi-user chat room name.
-  Returns:
-  id - the unique id used to create the chat room.
-  */
-
-  createInstantRoom: function(room, success_cb, error_cb) {
-    var roomiq;
-    roomiq = $iq({
-      to: room,
-      type: "set"
-    }).c("query", {
-      xmlns: Strophe.NS.MUC_OWNER
-    }).c("x", {
-      xmlns: "jabber:x:data",
-      type: "submit"
-    });
-    return this._connection.sendIQ(roomiq.tree(), success_cb, error_cb);
-  },
-  /*Function
-  Set the topic of the chat room.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) topic - Topic message.
-  */
-
-  setTopic: function(room, topic) {
-    var msg;
-    msg = $msg({
-      to: room,
-      from: this._connection.jid,
-      type: "groupchat"
-    }).c("subject", {
-      xmlns: "jabber:client"
-    }).t(topic);
-    return this._connection.send(msg.tree());
-  },
-  /*Function
-  Internal Function that Changes the role or affiliation of a member
-  of a MUC room. This function is used by modifyRole and modifyAffiliation.
-  The modification can only be done by a room moderator. An error will be
-  returned if the user doesn't have permission.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (Object) item - Object with nick and role or jid and affiliation attribute
-  (String) reason - Optional reason for the change.
-  (Function) handler_cb - Optional callback for success
-  (Function) error_cb - Optional callback for error
-  Returns:
-  iq - the id of the mode change request.
-  */
-
-  _modifyPrivilege: function(room, item, reason, handler_cb, error_cb) {
-    var iq;
-    iq = $iq({
-      to: room,
-      type: "set"
-    }).c("query", {
-      xmlns: Strophe.NS.MUC_ADMIN
-    }).cnode(item.node);
-    if (reason != null) {
-      iq.c("reason", reason);
-    }
-    return this._connection.sendIQ(iq.tree(), handler_cb, error_cb);
-  },
-  /*Function
-  Changes the role of a member of a MUC room.
-  The modification can only be done by a room moderator. An error will be
-  returned if the user doesn't have permission.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) nick - The nick name of the user to modify.
-  (String) role - The new role of the user.
-  (String) affiliation - The new affiliation of the user.
-  (String) reason - Optional reason for the change.
-  (Function) handler_cb - Optional callback for success
-  (Function) error_cb - Optional callback for error
-  Returns:
-  iq - the id of the mode change request.
-  */
-
-  modifyRole: function(room, nick, role, reason, handler_cb, error_cb) {
-    var item;
-    item = $build("item", {
-      nick: nick,
-      role: role
-    });
-    return this._modifyPrivilege(room, item, reason, handler_cb, error_cb);
-  },
-  kick: function(room, nick, reason, handler_cb, error_cb) {
-    return this.modifyRole(room, nick, 'none', reason, handler_cb, error_cb);
-  },
-  voice: function(room, nick, reason, handler_cb, error_cb) {
-    return this.modifyRole(room, nick, 'participant', reason, handler_cb, error_cb);
-  },
-  mute: function(room, nick, reason, handler_cb, error_cb) {
-    return this.modifyRole(room, nick, 'visitor', reason, handler_cb, error_cb);
-  },
-  op: function(room, nick, reason, handler_cb, error_cb) {
-    return this.modifyRole(room, nick, 'moderator', reason, handler_cb, error_cb);
-  },
-  deop: function(room, nick, reason, handler_cb, error_cb) {
-    return this.modifyRole(room, nick, 'participant', reason, handler_cb, error_cb);
-  },
-  /*Function
-  Changes the affiliation of a member of a MUC room.
-  The modification can only be done by a room moderator. An error will be
-  returned if the user doesn't have permission.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) jid  - The jid of the user to modify.
-  (String) affiliation - The new affiliation of the user.
-  (String) reason - Optional reason for the change.
-  (Function) handler_cb - Optional callback for success
-  (Function) error_cb - Optional callback for error
-  Returns:
-  iq - the id of the mode change request.
-  */
-
-  modifyAffiliation: function(room, jid, affiliation, reason, handler_cb, error_cb) {
-    var item;
-    item = $build("item", {
-      jid: jid,
-      affiliation: affiliation
-    });
-    return this._modifyPrivilege(room, item, reason, handler_cb, error_cb);
-  },
-  ban: function(room, jid, reason, handler_cb, error_cb) {
-    return this.modifyAffiliation(room, jid, 'outcast', reason, handler_cb, error_cb);
-  },
-  member: function(room, jid, reason, handler_cb, error_cb) {
-    return this.modifyAffiliation(room, jid, 'member', reason, handler_cb, error_cb);
-  },
-  revoke: function(room, jid, reason, handler_cb, error_cb) {
-    return this.modifyAffiliation(room, jid, 'none', reason, handler_cb, error_cb);
-  },
-  owner: function(room, jid, reason, handler_cb, error_cb) {
-    return this.modifyAffiliation(room, jid, 'owner', reason, handler_cb, error_cb);
-  },
-  admin: function(room, jid, reason, handler_cb, error_cb) {
-    return this.modifyAffiliation(room, jid, 'admin', reason, handler_cb, error_cb);
-  },
-  /*Function
-  Change the current users nick name.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) user - The new nick name.
-  */
-
-  changeNick: function(room, user) {
-    var presence, room_nick;
-    room_nick = this.test_append_nick(room, user);
-    presence = $pres({
-      from: this._connection.jid,
-      to: room_nick,
-      id: this._connection.getUniqueId()
-    });
-    return this._connection.send(presence.tree());
-  },
-  /*Function
-  Change the current users status.
-  Parameters:
-  (String) room - The multi-user chat room name.
-  (String) user - The current nick.
-  (String) show - The new show-text.
-  (String) status - The new status-text.
-  */
-
-  setStatus: function(room, user, show, status) {
-    var presence, room_nick;
-    room_nick = this.test_append_nick(room, user);
-    presence = $pres({
-      from: this._connection.jid,
-      to: room_nick
-    });
-    if (show != null) {
-      presence.c('show', show).up();
-    }
-    if (status != null) {
-      presence.c('status', status);
-    }
-    return this._connection.send(presence.tree());
-  },
-  /*Function
-  List all chat room available on a server.
-  Parameters:
-  (String) server - name of chat server.
-  (String) handle_cb - Function to call for room list return.
-  (String) error_cb - Function to call on error.
-  */
-
-  listRooms: function(server, handle_cb, error_cb) {
-    var iq;
-    iq = $iq({
-      to: server,
-      from: this._connection.jid,
-      type: "get"
-    }).c("query", {
-      xmlns: Strophe.NS.DISCO_ITEMS
-    });
-    return this._connection.sendIQ(iq, handle_cb, error_cb);
-  },
-  test_append_nick: function(room, nick) {
-    return room + (nick != null ? "/" + (Strophe.escapeNode(nick)) : "");
-  }
-});
-
-XmppRoom = (function() {
-
-  function XmppRoom(client, name, nick, password) {
-    this.client = client;
-    this.name = name;
-    this.nick = nick;
-    this.password = password;
-    this._roomRosterHandler = __bind(this._roomRosterHandler, this);
-
-    this._addOccupant = __bind(this._addOccupant, this);
-
-    this.roster = {};
-    this._message_handlers = {};
-    this._presence_handlers = {};
-    this._roster_handlers = {};
-    this._handler_ids = 0;
-    if (client.muc) {
-      this.client = client.muc;
-    }
-    this.name = Strophe.getBareJidFromJid(name);
-    this.addHandler('presence', this._roomRosterHandler);
-  }
-
-  XmppRoom.prototype.join = function(msg_handler_cb, pres_handler_cb, roster_cb) {
-    return this.client.join(this.name, this.nick, msg_handler_cb, pres_handler_cb, roster_cb, this.password);
-  };
-
-  XmppRoom.prototype.leave = function(handler_cb, message) {
-    this.client.leave(this.name, this.nick, handler_cb, message);
-    return delete this.client.rooms[this.name];
-  };
-
-  XmppRoom.prototype.message = function(nick, message, html_message, type) {
-    return this.client.message(this.name, nick, message, html_message, type);
-  };
-
-  XmppRoom.prototype.groupchat = function(message, html_message) {
-    return this.client.groupchat(this.name, message, html_message);
-  };
-
-  XmppRoom.prototype.invite = function(receiver, reason) {
-    return this.client.invite(this.name, receiver, reason);
-  };
-
-  XmppRoom.prototype.directInvite = function(receiver, reason) {
-    return this.client.directInvite(this.name, receiver, reason, this.password);
-  };
-
-  XmppRoom.prototype.configure = function(handler_cb) {
-    return this.client.configure(this.name, handler_cb);
-  };
-
-  XmppRoom.prototype.cancelConfigure = function() {
-    return this.client.cancelConfigure(this.name);
-  };
-
-  XmppRoom.prototype.saveConfiguration = function(config) {
-    return this.client.saveConfiguration(this.name, config);
-  };
-
-  XmppRoom.prototype.queryOccupants = function(success_cb, error_cb) {
-    return this.client.queryOccupants(this.name, success_cb, error_cb);
-  };
-
-  XmppRoom.prototype.setTopic = function(topic) {
-    return this.client.setTopic(this.name, topic);
-  };
-
-  XmppRoom.prototype.modifyRole = function(nick, role, reason, success_cb, error_cb) {
-    return this.client.modifyRole(this.name, nick, role, reason, success_cb, error_cb);
-  };
-
-  XmppRoom.prototype.kick = function(nick, reason, handler_cb, error_cb) {
-    return this.client.kick(this.name, nick, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.voice = function(nick, reason, handler_cb, error_cb) {
-    return this.client.voice(this.name, nick, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.mute = function(nick, reason, handler_cb, error_cb) {
-    return this.client.mute(this.name, nick, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.op = function(nick, reason, handler_cb, error_cb) {
-    return this.client.op(this.name, nick, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.deop = function(nick, reason, handler_cb, error_cb) {
-    return this.client.deop(this.name, nick, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.modifyAffiliation = function(jid, affiliation, reason, success_cb, error_cb) {
-    return this.client.modifyAffiliation(this.name, jid, affiliation, reason, success_cb, error_cb);
-  };
-
-  XmppRoom.prototype.ban = function(jid, reason, handler_cb, error_cb) {
-    return this.client.ban(this.name, jid, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.member = function(jid, reason, handler_cb, error_cb) {
-    return this.client.member(this.name, jid, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.revoke = function(jid, reason, handler_cb, error_cb) {
-    return this.client.revoke(this.name, jid, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.owner = function(jid, reason, handler_cb, error_cb) {
-    return this.client.owner(this.name, jid, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.admin = function(jid, reason, handler_cb, error_cb) {
-    return this.client.admin(this.name, jid, reason, handler_cb, error_cb);
-  };
-
-  XmppRoom.prototype.changeNick = function(nick) {
-    this.nick = nick;
-    return this.client.changeNick(this.name, nick);
-  };
-
-  XmppRoom.prototype.setStatus = function(show, status) {
-    return this.client.setStatus(this.name, this.nick, show, status);
-  };
-
-  /*Function
-  Adds a handler to the MUC room.
-    Parameters:
-  (String) handler_type - 'message', 'presence' or 'roster'.
-  (Function) handler - The handler function.
-  Returns:
-  id - the id of handler.
-  */
-
-
-  XmppRoom.prototype.addHandler = function(handler_type, handler) {
-    var id;
-    id = this._handler_ids++;
-    switch (handler_type) {
-      case 'presence':
-        this._presence_handlers[id] = handler;
-        break;
-      case 'message':
-        this._message_handlers[id] = handler;
-        break;
-      case 'roster':
-        this._roster_handlers[id] = handler;
-        break;
-      default:
-        this._handler_ids--;
-        return null;
-    }
-    return id;
-  };
-
-  /*Function
-  Removes a handler from the MUC room.
-  This function takes ONLY ids returned by the addHandler function
-  of this room. passing handler ids returned by connection.addHandler
-  may brake things!
-    Parameters:
-  (number) id - the id of the handler
-  */
-
-
-  XmppRoom.prototype.removeHandler = function(id) {
-    delete this._presence_handlers[id];
-    delete this._message_handlers[id];
-    return delete this._roster_handlers[id];
-  };
-
-  /*Function
-  Creates and adds an Occupant to the Room Roster.
-    Parameters:
-  (Object) data - the data the Occupant is filled with
-  Returns:
-  occ - the created Occupant.
-  */
-
-
-  XmppRoom.prototype._addOccupant = function(data) {
-    var occ;
-    occ = new Occupant(data, this);
-    this.roster[occ.nick] = occ;
-    return occ;
-  };
-
-  /*Function
-  The standard handler that managed the Room Roster.
-    Parameters:
-  (Object) pres - the presence stanza containing user information
-  */
-
-
-  XmppRoom.prototype._roomRosterHandler = function(pres) {
-    var data, handler, id, newnick, nick, _ref;
-    data = XmppRoom._parsePresence(pres);
-    nick = data.nick;
-    newnick = data.newnick || null;
-    switch (data.type) {
-      case 'error':
-        return;
-      case 'unavailable':
-        if (newnick) {
-          data.nick = newnick;
-          if (this.roster[nick] && this.roster[newnick]) {
-            this.roster[nick].update(this.roster[newnick]);
-            this.roster[newnick] = this.roster[nick];
-          }
-          if (this.roster[nick] && !this.roster[newnick]) {
-            this.roster[newnick] = this.roster[nick].update(data);
-          }
-        }
-        delete this.roster[nick];
-        break;
-      default:
-        if (this.roster[nick]) {
-          this.roster[nick].update(data);
-        } else {
-          this._addOccupant(data);
-        }
-    }
-    _ref = this._roster_handlers;
-    for (id in _ref) {
-      handler = _ref[id];
-      if (!handler(this.roster, this)) {
-        delete this._roster_handlers[id];
-      }
-    }
-    return true;
-  };
-
-  /*Function
-  Parses a presence stanza
-    Parameters:
-  (Object) data - the data extracted from the presence stanza
-  */
-
-
-  XmppRoom._parsePresence = function(pres) {
-    var a, c, c2, data, _i, _j, _len, _len1, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7;
-    data = {};
-    a = pres.attributes;
-    data.nick = Strophe.getResourceFromJid(a.from.textContent);
-    data.type = ((_ref = a.type) != null ? _ref.textContent : void 0) || null;
-    data.states = [];
-    _ref1 = pres.childNodes;
-    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-      c = _ref1[_i];
-      switch (c.nodeName) {
-        case "status":
-          data.status = c.textContent || null;
-          break;
-        case "show":
-          data.show = c.textContent || null;
-          break;
-        case "x":
-          a = c.attributes;
-          if (((_ref2 = a.xmlns) != null ? _ref2.textContent : void 0) === Strophe.NS.MUC_USER) {
-            _ref3 = c.childNodes;
-            for (_j = 0, _len1 = _ref3.length; _j < _len1; _j++) {
-              c2 = _ref3[_j];
-              switch (c2.nodeName) {
-                case "item":
-                  a = c2.attributes;
-                  data.affiliation = ((_ref4 = a.affiliation) != null ? _ref4.textContent : void 0) || null;
-                  data.role = ((_ref5 = a.role) != null ? _ref5.textContent : void 0) || null;
-                  data.jid = ((_ref6 = a.jid) != null ? _ref6.textContent : void 0) || null;
-                  data.newnick = ((_ref7 = a.nick) != null ? _ref7.textContent : void 0) || null;
-                  break;
-                case "status":
-                  if (c2.attributes.code) {
-                    data.states.push(c2.attributes.code.textContent);
-                  }
-              }
-            }
-          }
-      }
-    }
-    return data;
-  };
-
-  return XmppRoom;
-
-})();
-
-RoomConfig = (function() {
-
-  function RoomConfig(info) {
-    this.parse = __bind(this.parse, this);
-    if (info != null) {
-      this.parse(info);
-    }
-  }
-
-  RoomConfig.prototype.parse = function(result) {
-    var attr, attrs, child, field, identity, query, _i, _j, _k, _len, _len1, _len2, _ref;
-    query = result.getElementsByTagName("query")[0].childNodes;
-    this.identities = [];
-    this.features = [];
-    this.x = [];
-    for (_i = 0, _len = query.length; _i < _len; _i++) {
-      child = query[_i];
-      attrs = child.attributes;
-      switch (child.nodeName) {
-        case "identity":
-          identity = {};
-          for (_j = 0, _len1 = attrs.length; _j < _len1; _j++) {
-            attr = attrs[_j];
-            identity[attr.name] = attr.textContent;
-          }
-          this.identities.push(identity);
-          break;
-        case "feature":
-          this.features.push(attrs["var"].textContent);
-          break;
-        case "x":
-          attrs = child.childNodes[0].attributes;
-          if ((!attrs["var"].textContent === 'FORM_TYPE') || (!attrs.type.textContent === 'hidden')) {
-            break;
-          }
-          _ref = child.childNodes;
-          for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
-            field = _ref[_k];
-            if (!(!field.attributes.type)) {
-              continue;
-            }
-            attrs = field.attributes;
-            this.x.push({
-              "var": attrs["var"].textContent,
-              label: attrs.label.textContent || "",
-              value: field.firstChild.textContent || ""
-            });
-          }
-      }
-    }
-    return {
-      "identities": this.identities,
-      "features": this.features,
-      "x": this.x
-    };
-  };
-
-  return RoomConfig;
-
-})();
-
-Occupant = (function() {
-
-  function Occupant(data, room) {
-    this.room = room;
-    this.update = __bind(this.update, this);
-
-    this.admin = __bind(this.admin, this);
-
-    this.owner = __bind(this.owner, this);
-
-    this.revoke = __bind(this.revoke, this);
-
-    this.member = __bind(this.member, this);
-
-    this.ban = __bind(this.ban, this);
-
-    this.modifyAffiliation = __bind(this.modifyAffiliation, this);
-
-    this.deop = __bind(this.deop, this);
-
-    this.op = __bind(this.op, this);
-
-    this.mute = __bind(this.mute, this);
-
-    this.voice = __bind(this.voice, this);
-
-    this.kick = __bind(this.kick, this);
-
-    this.modifyRole = __bind(this.modifyRole, this);
-
-    this.update(data);
-  }
-
-  Occupant.prototype.modifyRole = function(role, reason, success_cb, error_cb) {
-    return this.room.modifyRole(this.nick, role, reason, success_cb, error_cb);
-  };
-
-  Occupant.prototype.kick = function(reason, handler_cb, error_cb) {
-    return this.room.kick(this.nick, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.voice = function(reason, handler_cb, error_cb) {
-    return this.room.voice(this.nick, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.mute = function(reason, handler_cb, error_cb) {
-    return this.room.mute(this.nick, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.op = function(reason, handler_cb, error_cb) {
-    return this.room.op(this.nick, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.deop = function(reason, handler_cb, error_cb) {
-    return this.room.deop(this.nick, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.modifyAffiliation = function(affiliation, reason, success_cb, error_cb) {
-    return this.room.modifyAffiliation(this.jid, affiliation, reason, success_cb, error_cb);
-  };
-
-  Occupant.prototype.ban = function(reason, handler_cb, error_cb) {
-    return this.room.ban(this.jid, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.member = function(reason, handler_cb, error_cb) {
-    return this.room.member(this.jid, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.revoke = function(reason, handler_cb, error_cb) {
-    return this.room.revoke(this.jid, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.owner = function(reason, handler_cb, error_cb) {
-    return this.room.owner(this.jid, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.admin = function(reason, handler_cb, error_cb) {
-    return this.room.admin(this.jid, reason, handler_cb, error_cb);
-  };
-
-  Occupant.prototype.update = function(data) {
-    this.nick = data.nick || null;
-    this.affiliation = data.affiliation || null;
-    this.role = data.role || null;
-    this.jid = data.jid || null;
-    this.status = data.status || null;
-    this.show = data.show || null;
-    return this;
-  };
-
-  return Occupant;
-
-})();
-/*
-This library is free software; you can redistribute it and/or modify it
- under the terms of the GNU Lesser General Public License as published
- by the Free Software Foundation; either version 2.1 of the License, or
- (at your option) any later version.
- .
- This library is distributed in the hope that it will be useful, but
- WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
- General Public License for more details.
-
-  Copyright (c) dodo <dodo@blacksec.org>, 2011
-
-*/
-
-/**
-* File: strophe.register.js
-* A Strophe plugin for XMPP In-Band Registration.
-*/
-Strophe.addConnectionPlugin('register', {
     _connection: null,
-
-    //The plugin must have the init function.
+    // The plugin must have the init function
+    /***Function
+    Initialize the MUC plugin. Sets the correct connection object and
+    extends the namesace.
+    */
     init: function(conn) {
         this._connection = conn;
-
-        // compute free emun index number
-        var i = 0;
-        Object.keys(Strophe.Status).forEach(function (key) {
-            i = Math.max(i, Strophe.Status[key]);
-        });
-
-        /* extend name space
-         *  NS.REGISTER - In-Band Registration
-         *              from XEP 77.
+        /* extend name space 
+         *  NS.MUC - XMPP Multi-user chat namespace
+         *              from XEP 45.  
+         *
          */
-        Strophe.addNamespace('REGISTER', 'jabber:iq:register');
-        Strophe.Status.REGISTERING = i + 1;
-        Strophe.Status.REGIFAIL    = i + 2;
-        Strophe.Status.REGISTER    = i + 3;
-        Strophe.Status.SUBMITTING  = i + 4;
-        Strophe.Status.SBMTFAIL    = i + 5;
-        Strophe.Status.REGISTERED  = i + 6;
-
-        if (conn.disco)
-            conn.disco.addFeature(Strophe.NS.REGISTER);
-
-        // hooking strophe's connection.reset
-        var self = this, reset = conn.reset;
-        conn.reset = function () {
-            reset();
-            self.instructions = "";
-            self.fields = {};
-            self.authentication = {};
-            self.registered = false;
-            self.enabled = null;
-        };
+        Strophe.addNamespace('MUC_OWNER', Strophe.NS.MUC+"#owner");
+        Strophe.addNamespace('MUC_ADMIN', Strophe.NS.MUC+"#admin");
     },
-
-    /** Function: connect
-     *  Starts the registration process.
-     *
-     *  As the registration process proceeds, the user supplied callback will
-     *  be triggered multiple times with status updates.  The callback
-     *  should take two arguments - the status code and the error condition.
-     *
-     *  The status code will be one of the values in the Strophe.Status
-     *  constants.  The error condition will be one of the conditions
-     *  defined in RFC 3920 or the condition 'strophe-parsererror'.
-     *
-     *  Please see XEP 77 for a more detailed explanation of the optional
-     *  parameters below.
-     *
-     *  Parameters:
-     *    (String) domain - The xmpp server's Domain.  This will be the server,
-     *      which will be contacted to register a new JID.
-     *      The server has to provide and allow In-Band Registration (XEP-0077).
-     *    (Function) callback The connect callback function.
-     *    (Integer) wait - The optional HTTPBIND wait value.  This is the
-     *      time the server will wait before returning an empty result for
-     *      a request.  The default setting of 60 seconds is recommended.
-     *      Other settings will require tweaks to the Strophe.TIMEOUT value.
-     *    (Integer) hold - The optional HTTPBIND hold value.  This is the
-     *      number of connections the server will hold at one time.  This
-     *      should almost always be set to 1 (the default).
-     */
-    connect: function (domain, callback, wait, hold) {
-        var that = this._connection;
-        this.instructions = "";
-        this.fields = {};
-        this.authentication = {};
-        this.registered = false;
-        this.enabled = false;
-
-        that.connect_callback = callback;
-        that.connected = false;
-        that.authenticated = false;
-        that.disconnecting = false;
-        that.errors = 0;
-
-        that.domain = domain || that.domain;
-        that.wait = wait || that.wait;
-        that.hold = hold || that.hold;
-
-        // build the body tag
-        var body = that._buildBody().attrs({
-            to: that.domain,
-            "xml:lang": "en",
-            wait: that.wait,
-            hold: that.hold,
-            content: "text/xml; charset=utf-8",
-            ver: "1.6",
-            "xmpp:version": "1.0",
-            "xmlns:xmpp": Strophe.NS.BOSH
-        });
-
-        that._changeConnectStatus(Strophe.Status.CONNECTING, null);
-
-        that._requests.push(
-            new Strophe.Request(body.tree(),
-                                that._onRequestStateChange.bind(
-                                    that, this._register_cb.bind(this)),
-                                body.tree().getAttribute("rid")));
-        that._throttledRequestHandler();
-    },
-
-    /** PrivateFunction: _register_cb
-     *  _Private_ handler for initial registration request.
-     *
-     *  This handler is used to process the initial registration request
-     *  response from the BOSH server. It is used to set up a bosh session
-     *  and requesting registration fields from host.
-     *
-     *  Parameters:
-     *    (Strophe.Request) req - The current request.
-     */
-    _register_cb: function (req) {
-        var that = this._connection;
-
-        Strophe.info("_register_cb was called");
-        that.connected = true;
-
-        var bodyWrap = req.getResponse();
-        if (!bodyWrap) { return; }
-
-        if (that.xmlInput !== Strophe.Connection.prototype.xmlInput) {
-            that.xmlInput(bodyWrap);
+    /***Function
+    Join a multi-user chat room
+    Parameters:
+    (String) room - The multi-user chat room to join.
+    (String) nick - The nickname to use in the chat room. Optional
+    (Function) msg_handler_cb - The function call to handle messages from the
+    specified chat room.
+    (Function) pres_handler_cb - The function call back to handle presence
+    in the chat room.
+    (String) password - The optional password to use. (password protected
+    rooms only)
+    */
+    join: function(room, nick, msg_handler_cb, pres_handler_cb, password) {
+        var room_nick = this.test_append_nick(room, nick);        
+        var msg = $pres({from: this._connection.jid,
+                         to: room_nick})
+            .c("x",{xmlns: Strophe.NS.MUC});
+        if (password)
+        {
+            var password_elem = Strophe.xmlElement("password", 
+                                                   [],
+                                                   password);
+            msg.cnode(password_elem);
         }
-        if (that.rawInput !== Strophe.Connection.prototype.rawInput) {
-            that.rawInput(Strophe.serialize(bodyWrap));
-        }
-
-        var typ = bodyWrap.getAttribute("type");
-        var cond, conflict;
-        if (typ !== null && typ == "terminate") {
-            // an error occurred
-            cond = bodyWrap.getAttribute("condition");
-            conflict = bodyWrap.getElementsByTagName("conflict");
-            if (cond !== null) {
-                if (cond == "remote-stream-error" && conflict.length > 0) {
-                    cond = "conflict";
+        if (msg_handler_cb)
+        {
+            this._connection.addHandler(function(stanza) {
+                var from = stanza.getAttribute('from');
+                var roomname = from.split("/");
+                // filter on room name
+                if (roomname[0] == room)
+                {
+                    return msg_handler_cb(stanza);
                 }
-                that._changeConnectStatus(Strophe.Status.CONNFAIL, cond);
-            } else {
-                that._changeConnectStatus(Strophe.Status.CONNFAIL, "unknown");
-            }
-            return;
-        }
-
-        // check to make sure we don't overwrite these if _connect_cb is
-        // called multiple times in the case of missing stream:features
-        if (!that.sid) {
-            that.sid = bodyWrap.getAttribute("sid");
-        }
-        if (!that.stream_id) {
-            that.stream_id = bodyWrap.getAttribute("authid");
-        }
-
-        var wind = bodyWrap.getAttribute('requests');
-        if (wind) { that.window = parseInt(wind, 10); }
-        var hold = bodyWrap.getAttribute('hold');
-        if (hold) { that.hold = parseInt(hold, 10); }
-        var wait = bodyWrap.getAttribute('wait');
-        if (wait) { that.wait = parseInt(wait, 10); }
-
-
-        var register, mechanisms;
-        register = bodyWrap.getElementsByTagName("register");
-        mechanisms = bodyWrap.getElementsByTagName("mechanism");
-        if (register.length === 0 && mechanisms.length === 0) {
-            // we didn't get stream:features yet, so we need wait for it
-            // by sending a blank poll request
-            var body = that._buildBody();
-            that._requests.push(
-                new Strophe.Request(body.tree(),
-                                    that._onRequestStateChange.bind(
-                                        that, this._register_cb.bind(this)),
-                                    body.tree().getAttribute("rid")));
-            that._throttledRequestHandler();
-            return;
-        }
-
-        var i, mech;
-        for (i = 0; i < mechanisms.length; i++) {
-            mech = Strophe.getText(mechanisms[i]);
-            if (mech == 'DIGEST-MD5') {
-                this.authentication.sasl_digest_md5 = true;
-            } else if (mech == 'PLAIN') {
-                this.authentication.sasl_plain = true;
-            } else if (mech == 'ANONYMOUS') {
-                this.authentication.sasl_anonymous = true;
-            }
-        }
-
-        if (register.length === 0) {
-            that._changeConnectStatus(Strophe.Status.REGIFAIL, null);
-            return;
-        } else this.enabled = true;
-
-        // send a get request for registration, to get all required data fields
-        that._changeConnectStatus(Strophe.Status.REGISTERING, null);
-        that._addSysHandler(this._get_register_cb.bind(this),
-                            null, "iq", null, null);
-        that.send($iq({type: "get"}).c("query",
-            {xmlns: Strophe.NS.REGISTER}).tree());
-    },
-
-    /** PrivateFunction: _get_register_cb
-     *  _Private_ handler for Registration Fields Request.
-     *
-     *  Parameters:
-     *    (XMLElement) elem - The query stanza.
-     *
-     *  Returns:
-     *    false to remove the handler.
-     */
-    _get_register_cb: function (stanza) {
-        var i, query, field, that = this._connection;
-        query = stanza.getElementsByTagName("query");
-
-        if (query.length !== 1) {
-            that._changeConnectStatus(Strophe.Status.REGIFAIL, "unknown");
-            return false;
-        }
-        query = query[0];
-        // get required fields
-        for (i = 0; i < query.childNodes.length; i++) {
-            field = query.childNodes[i];
-            if (field.tagName.toLowerCase() === 'instructions') {
-                // this is a special element
-                // it provides info about given data fields in a textual way.
-                this.instructions = Strophe.getText(field);
-                continue;
-            } else if (field.tagName.toLowerCase() === 'x') {
-                // ignore x for now
-                continue;
-            }
-            this.fields[field.tagName.toLowerCase()] = Strophe.getText(field);
-        }
-        that._changeConnectStatus(Strophe.Status.REGISTER, null);
-        return false;
-    },
-
-    /** Function: submit
-     *  Submits Registration data.
-     *
-     *  As the registration process proceeds, the user supplied callback will
-     *  be triggered with status code Strophe.Status.REGISTER. At this point
-     *  the user should fill all required fields in connection.register.fields
-     *  and invoke this function to procceed in the registration process.
-     */
-    submit: function () {
-        var i, name, query, fields, that = this._connection;
-        query = $iq({type: "set"}).c("query", {xmlns:Strophe.NS.REGISTER});
-
-        // set required fields
-        fields = Object.keys(this.fields);
-        for (i = 0; i < fields.length; i++) {
-            name = fields[i];
-            query.c(name).t(this.fields[name]).up();
-        }
-
-        // providing required information
-        that._changeConnectStatus(Strophe.Status.SUBMITTING, null);
-        that._addSysHandler(this._submit_cb.bind(this),
-                            null, "iq", null, null);
-        that.send(query);
-    },
-
-    /** PrivateFunction: _submit_cb
-     *  _Private_ handler for submitted registration information.
-     *
-     *  Parameters:
-     *    (XMLElement) elem - The query stanza.
-     *
-     *  Returns:
-     *    false to remove the handler.
-     */
-    _submit_cb: function (stanza) {
-        var i, query, field, error = null, that = this._connection;
-
-        query = stanza.getElementsByTagName("query");
-        if (query.length > 0) {
-            query = query[0];
-            // update fields
-            for (i = 0; i < query.childNodes.length; i++) {
-                field = query.childNodes[i];
-                if (field.tagName.toLowerCase() === 'instructions') {
-                    // this is a special element
-                    // it provides info about given data fields in a textual way
-                    this.instructions = Strophe.getText(field);
-                    continue;
+                else
+                {
+                    return true;
                 }
-                this.fields[field.tagName.toLowerCase()]=Strophe.getText(field);
-            }
+            },
+                                        null,
+                                        "message",
+                                        null,
+                                        null,
+                                        null);
         }
-
-        if (stanza.getAttribute("type") === "error") {
-            error = stanza.getElementsByTagName("error");
-            if (error.length !== 1) {
-                that._changeConnectStatus(Strophe.Status.SBMTFAIL, "unknown");
-                return false;
-            }
-            // this is either 'conflict' or 'not-acceptable'
-            error = error[0].firstChild.tagName.toLowerCase();
-            if (error === 'conflict')
-                // already registered
-                this.registered = true;
-        } else
-            this.registered = true;
-
-        if (this.registered) {
-            that.jid  = this.fields.username + "@" + that.domain;
-            that.pass = this.fields.password;
+        if (pres_handler_cb)
+        {
+            this._connection.addHandler(function(stanza) {
+                var xquery = stanza.getElementsByTagName("x");
+                if (xquery.length > 0)
+                {
+                    //Handle only MUC user protocol
+                    for (var i = 0; i < xquery.length; i++)
+                    {
+                        var xmlns = xquery[i].getAttribute("xmlns");
+                        
+                        if (xmlns && xmlns.match(Strophe.NS.MUC))
+                        {
+                            return pres_handler_cb(stanza);
+                        }
+                    }
+                }
+                return true;                
+            },
+                                        null,
+                                        "presence",
+                                        null,
+                                        null,
+                                        null);
         }
-
-        if (error === null) {
-            Strophe.info("Registered successful.");
-            that._changeConnectStatus(Strophe.Status.REGISTERED, null);
-        } else {
-            Strophe.info("Registration failed.");
-            that._changeConnectStatus(Strophe.Status.SBMTFAIL, error);
-        }
-        return false;
+        this._connection.send(msg);
     },
-
-    /** Function: authenticate
-     *  Login with newly registered account.
-     *
-     *  This is just a helper function to authenticate with the new account of
-     *  the successful registration. This is recommended to do in the
-     *  user supplied callback when receiving Strophe.Status.REGISTERED.
-     *  It is also possible to do it on Strophe.Status.SBMTFAIL when
-     *  connection.register.registered is true under the circumstances that an
-     *  already existing account with the appendant password was supplied.
+    /***Function
+    Leave a multi-user chat room
+    Parameters:
+    (String) room - The multi-user chat room to leave.
+    (String) nick - The nick name used in the room.
+    (Function) handler_cb - Optional function to handle the successful leave.
+    Returns:
+    iqid - The unique id for the room leave.
+    */
+    leave: function(room, nick, handler_cb) {
+        var room_nick = this.test_append_nick(room, nick);        
+        var presenceid = this._connection.getUniqueId();
+        var presence = $pres({type: "unavailable",
+                              id: presenceid,
+                              from: this._connection.jid,
+                              to: room_nick})
+            .c("x",{xmlns: Strophe.NS.MUC});
+        this._connection.addHandler(handler_cb,
+                                    null,
+                                    "presence",
+                                    null,
+                                    presenceid,
+                                    null);
+        this._connection.send(presence);
+        return presenceid;
+    },
+    /***Function
+    Parameters:
+    (String) room - The multi-user chat room name.
+    (String) nick - The nick name used in the chat room.
+    (String) message - The message to send to the room.
+    (String) type - "groupchat" for group chat messages or "chat" for private chat messages
+    Returns:
+    msgiq - the unique id used to send the message
+    */
+    message: function(room, nick, message, type) {
+        var room_nick = this.test_append_nick(room, nick);        
+        type = type || "groupchat";
+        var msgid = this._connection.getUniqueId();
+        var msg = $msg({to: room_nick,
+                        from: this._connection.jid,
+                        type: type,
+                        id: msgid}).c("body",
+                                      {xmlns: Strophe.NS.CLIENT}).t(message);
+        msg.up().c("x", {xmlns: "jabber:x:event"}).c("composing");
+        this._connection.send(msg);
+        return msgid;
+    },
+    /***Function
+    Start a room configuration.
+    Parameters:
+    (String) room - The multi-user chat room name.
+    Returns:
+    id - the unique id used to send the configuration request
+    */
+    configure: function(room) {
+        //send iq to start room configuration
+        var config = $iq({to:room,
+                          type: "get"}).c("query",
+                                          {xmlns: Strophe.NS.MUC_OWNER});
+        var stanza = config.tree();
+        return this._connection.sendIQ(stanza,
+                               function(){},
+                               function(){});
+    },
+    /***Function
+    Cancel the room configuration
+    Parameters:
+    (String) room - The multi-user chat room name.
+    Returns:
+    id - the unique id used to cancel the configuration.
+    */
+    cancelConfigure: function(room) {
+        //send iq to start room configuration
+        var config = $iq({to: room,
+                          type: "set"})
+            .c("query", {xmlns: Strophe.NS.MUC_OWNER})
+            .c("x", {xmlns: "jabber:x:data", type: "cancel"});
+        var stanza = config.tree();
+        return this._connection.sendIQ(stanza,
+                                       function(){},
+                                       function(){});
+    },
+    /***Function
+    Save a room configuration.
+    Parameters:
+    (String) room - The multi-user chat room name.
+    (Array) configarray - an array of form elements used to configure the room.
+    Returns:
+    id - the unique id used to save the configuration.
+    */
+    saveConfiguration: function(room, configarray) {
+        var config = $iq({to: room,
+                          type: "set"})
+            .c("query", {xmlns: Strophe.NS.MUC_OWNER})
+            .c("x", {xmlns: "jabber:x:data", type: "submit"});
+        for (var i = 0; i < configarray.length; i++) {
+            config.cnode(configarray[i]);
+            config.up();
+        }
+        var stanza = config.tree();
+        return this._connection.sendIQ(stanza,
+                                       function(){},
+                                       function(){});        
+    },
+    /***Function
+    Parameters:
+    (String) room - The multi-user chat room name.
+    Returns:
+    id - the unique id used to create the chat room.
+    */
+    createInstantRoom: function(room) {
+        var roomiq = $iq({to: room,
+                          type: "set"})
+            .c("query", {xmlns: Strophe.NS.MUC_OWNER})
+            .c("x", {xmlns: "jabber:x:data",
+                     type: "submit"});
+        return this._connection.sendIQ(roomiq.tree(),
+                                       function() {},
+                                       function() {});
+    },
+    /***
+     Set the topic of the chat room.
+     Parameters:
+     (String) room - The multi-user chat room name.
+     (String) topic - Topic message.
      */
-    authenticate: function () {
-        var auth_str, hashed_auth_str, that = this._connection;
-
-        if (Strophe.getNodeFromJid(that.jid) === null &&
-            this.authentication.sasl_anonymous) {
-            that._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
-            that._sasl_success_handler = that._addSysHandler(
-                that._sasl_success_cb.bind(that), null,
-                "success", null, null);
-            that._sasl_failure_handler = that._addSysHandler(
-                that._sasl_failure_cb.bind(that), null,
-                "failure", null, null);
-
-            that.send($build("auth", {
-                xmlns: Strophe.NS.SASL,
-                mechanism: "ANONYMOUS"
-            }).tree());
-        } else if (Strophe.getNodeFromJid(that.jid) === null) {
-            // we don't have a node, which is required for non-anonymous
-            // client connections
-            that._changeConnectStatus(Strophe.Status.CONNFAIL,
-                                      'x-strophe-bad-non-anon-jid');
-            that.disconnect();
-        } else if (this.authentication.sasl_digest_md5) {
-            that._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
-            that._sasl_challenge_handler = that._addSysHandler(
-                that._sasl_challenge1_cb.bind(that), null,
-                "challenge", null, null);
-            that._sasl_failure_handler = that._addSysHandler(
-                that._sasl_failure_cb.bind(that), null,
-                "failure", null, null);
-
-            that.send($build("auth", {
-                xmlns: Strophe.NS.SASL,
-                mechanism: "DIGEST-MD5"
-            }).tree());
-        } else if (this.authentication.sasl_plain) {
-            // Build the plain auth string (barejid null
-            // username null password) and base 64 encoded.
-            auth_str = Strophe.getBareJidFromJid(that.jid);
-            auth_str = auth_str + "\u0000";
-            auth_str = auth_str + Strophe.getNodeFromJid(that.jid);
-            auth_str = auth_str + "\u0000";
-            auth_str = auth_str + that.pass;
-
-            that._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
-            that._sasl_success_handler = that._addSysHandler(
-                that._sasl_success_cb.bind(that), null,
-                "success", null, null);
-            that._sasl_failure_handler = that._addSysHandler(
-                that._sasl_failure_cb.bind(that), null,
-                "failure", null, null);
-
-            hashed_auth_str = Base64.encode(auth_str);
-            that.send($build("auth", {
-                xmlns: Strophe.NS.SASL,
-                mechanism: "PLAIN"
-            }).t(hashed_auth_str).tree());
-        } else {
-            that._changeConnectStatus(Strophe.Status.AUTHENTICATING, null);
-            that._addSysHandler(that._auth1_cb.bind(that), null, null,
-                                null, "_auth_1");
-
-            that.send($iq({
-                type: "get",
-                to: that.domain,
-                id: "_auth_1"
-            }).c("query", {
-                xmlns: Strophe.NS.AUTH
-            }).c("username", {}).t(Strophe.getNodeFromJid(that.jid)).tree());
-        }
+    setTopic: function(room, topic) {
+        var msg = $msg({to: room,
+                        from: this._connection.jid,
+                        type: "groupchat"})
+            .c("subject", {xmlns: "jabber:client"}).t(topic);
+        this._connection.send(msg.tree());
     },
+    /***Function
+    Changes the role and affiliation of a member of a MUC room.
+    The modification can only be done by a room moderator. An error will be
+    returned if the user doesn't have permission.
+    Parameters:
+    (String) room - The multi-user chat room name.
+    (String) nick - The nick name of the user to modify.
+    (String) role - The new role of the user.
+    (String) affiliation - The new affiliation of the user.
+    (String) reason - The reason for the change.
+    Returns:
+    iq - the id of the mode change request.
+    */
+    modifyUser: function(room, nick, role, affiliation, reason) {
+        var item_attrs = {nick: Strophe.escapeNode(nick)};
+        if (role !== null)
+        {
+            item_attrs.role = role;
+        }
+        if (affiliation !== null)
+        {
+            item_attrs.affiliation = affiliation;
+        }
+        var item = $build("item", item_attrs);
+        if (reason !== null)
+        {
+            item.cnode(Strophe.xmlElement("reason", reason));
+        }
+        var roomiq = $iq({to: room,
+                          type: "set"})
+            .c("query", {xmlns: Strophe.NS.MUC_OWNER}).cnode(item.tree());
+        return this._connection.sendIQ(roomiq.tree(),
+                                       function() {},
+                                       function() {});
+    },
+    /***Function
+    Change the current users nick name.
+    Parameters:
+    (String) room - The multi-user chat room name.
+    (String) user - The new nick name.
+    */
+    changeNick: function(room, user) {
+        var room_nick = this.test_append_nick(room, user);
+        var presence = $pres({from: this._connection.jid,
+                              to: room_nick})
+            .c("x",{xmlns: Strophe.NS.MUC});
+        this._connection.send(presence.tree());
+    },
+    /***Function
+    List all chat room available on a server.
+    Parameters:
+    (String) server - name of chat server.
+    (String) handle_cb - Function to call for room list return.
+    */
+    listRooms: function(server, handle_cb) {
+        var iq = $iq({to: server,
+                      from: this._connection.jid,
+                      type: "get"})
+            .c("query",{xmlns: Strophe.NS.DISCO_ITEMS});        
+        this._connection.sendIQ(iq, handle_cb, function(){});        
+    },
+    test_append_nick: function(room, nick) {
+        var room_nick = room;
+        if (nick) 
+        {
+            room_nick += "/" + Strophe.escapeNode(nick); 
+        }
+        return room_nick;
+    }
 });
 /*
   mustache.js — Logic-less templates in JavaScript
